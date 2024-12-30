@@ -12,14 +12,12 @@ module Hanami
         # @api private
         def self.extended(base)
           base.module_eval do
-            if Hanami.bundled?("hanami-assets")
-              register "assets" do |prefix|
-                prefix.register "compile", Assets::Compile
-                prefix.register "watch", Assets::Watch
-              end
+            register "assets" do |prefix|
+              prefix.register "compile", Assets::Compile
+              prefix.register "watch", Assets::Watch
             end
-
             return
+
             register "version", Commands::App::Version, aliases: ["v", "-v", "--version"]
             register "install", Commands::App::Install
             register "dev", Commands::App::Dev
@@ -27,6 +25,13 @@ module Hanami
             register "server", Commands::App::Server, aliases: ["s"]
             register "routes", Commands::App::Routes
             register "middleware", Commands::App::Middleware
+
+            if Hanami.bundled?("hanami-assets")
+              register "assets" do |prefix|
+                prefix.register "compile", Assets::Compile
+                prefix.register "watch", Assets::Watch
+              end
+            end
 
             if Hanami.bundled?("hanami-db")
               register "db" do |db|

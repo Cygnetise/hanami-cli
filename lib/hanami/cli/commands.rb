@@ -12,6 +12,7 @@ module Hanami
     # @api private
     # @since 2.0.0
     def self.within_hanami_app?
+      return true
       require "hanami"
 
       !!Hanami.app_path

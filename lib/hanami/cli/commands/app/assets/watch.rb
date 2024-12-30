@@ -18,7 +18,7 @@ module Hanami
 
             # @since 2.1.0
             # @api private
-            def assets_command(slice)
+            def assets_command
               super + ["--watch"]
             end
           end

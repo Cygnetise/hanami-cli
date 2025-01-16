@@ -12,6 +12,12 @@ module Hanami
         # @api private
         def self.extended(base)
           base.module_eval do
+            register "assets" do |prefix|
+              prefix.register "compile", Assets::Compile
+              prefix.register "watch", Assets::Watch
+            end
+            return
+
             register "version", Commands::App::Version, aliases: ["v", "-v", "--version"]
             register "install", Commands::App::Install
             register "dev", Commands::App::Dev

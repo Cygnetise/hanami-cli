@@ -3,6 +3,7 @@
 require "shellwords"
 require_relative "../command"
 require_relative "../../../interactive_system_call"
+require 'hanami/config_for_two/assets'
 
 module Hanami
   module CLI
@@ -31,7 +32,7 @@ module Hanami
             # @api private
             def initialize(
               out:, err:,
-              config: app.config.assets,
+              config: Hanami::ConfigForTwo::Assets.new,
               system_call: InteractiveSystemCall.new(out: out, err: err, exit_after: false),
               **opts
             )
@@ -44,21 +45,18 @@ module Hanami
             # @since 2.1.0
             # @api private
             def call(**)
-              slices = slices_with_assets
-
-              if slices.empty?
+              assets_path = Hanami.root.join("apps", "assets")
+              unless assets_path.directory?
                 out.puts "No assets found."
                 return
               end
 
-              slices.each do |slice|
-                unless assets_config(slice)
-                  out.puts "No assets config found for #{slice}. Please create a config/assets.js."
-                  return
-                end
+              unless assets_config
+                out.puts "No assets config found. Please create a config/assets.js."
+                return
               end
 
-              pids = slices_with_assets.map { |slice| fork_child_assets_command(slice) }
+              pids = [fork_child_assets_command]
 
               Signal.trap("INT") do
                 pids.each do |pid|
@@ -81,10 +79,10 @@ module Hanami
 
             # @since 2.1.0
             # @api private
-            def fork_child_assets_command(slice)
+            def fork_child_assets_command
               Process.fork do
-                cmd, *args = assets_command(slice)
-                system_call.call(cmd, *args, out_prefix: "[#{slice.slice_name}] ")
+                cmd, *args = assets_command
+                system_call.call(cmd, *args, out_prefix: "[Hanami app] ")
               rescue Interrupt
                 # When this has been interrupted (by the Signal.trap handler in #call), catch the
                 # interrupt and exit cleanly, without showing the default full backtrace.
@@ -93,38 +91,13 @@ module Hanami
 
             # @since 2.1.0
             # @api private
-            def assets_command(slice)
-              cmd = [config.node_command, assets_config(slice).to_s, "--"]
+            def assets_command
+              cmd = [config.node_command, assets_config.to_s, "--"]
 
-              if slice.eql?(slice.app)
-                cmd << "--path=app"
-                cmd << "--dest=public/assets"
-              else
-                cmd << "--path=#{slice.root.relative_path_from(slice.app.root)}"
-                cmd << "--dest=public/assets/#{Hanami::Assets.public_assets_dir(slice)}"
-              end
+              cmd << "--path=apps"
+              cmd << "--dest=public/assets"
 
               cmd
-            end
-
-            # @since 2.1.0
-            # @api private
-            def slices_with_assets
-              slices = app.slices.with_nested + [app]
-              slices.select { |slice| slice_assets?(slice) }
-            end
-
-            # @since 2.1.0
-            # @api private
-            def slice_assets?(slice)
-              assets_path =
-                if slice.app.eql?(slice)
-                  slice.root.join("app", "assets")
-                else
-                  slice.root.join("assets")
-                end
-
-              assets_path.directory?
             end
 
             # Returns the path to the assets config (`config/assets.js`) for the given slice.
@@ -134,11 +107,11 @@ module Hanami
             #
             # @since 2.1.0
             # @api private
-            def assets_config(slice)
-              config = slice.root.join("config", "assets.js")
+            def assets_config
+              config = Hanami.root.join("config", "assets.js")
               return config if config.exist?
 
-              config = slice.app.root.join("config", "assets.js")
+              config = Hanami.root.join("config", "assets.js")
               config if config.exist?
             end
 
